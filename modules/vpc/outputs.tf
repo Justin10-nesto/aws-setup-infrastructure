@@ -20,7 +20,7 @@ output "nat_instance_id" {
 
 output "ec2_security_group_id" {
   description = "ID of the EC2 security group"
-  value       = aws_security_group.ec2_sg.id
+  value       = local.ec2_sg_id
 }
 
 output "db_security_group_id" {

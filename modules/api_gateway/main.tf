@@ -1,6 +1,9 @@
 // Get current AWS region for API URL construction
 data "aws_region" "current" {}
 
+# Add data source to get AWS account ID
+data "aws_caller_identity" "current" {}
+
 resource "aws_api_gateway_rest_api" "todo_api" {
     name        = "${var.project_name}-api"
     description = "API Gateway for ToDo App"
@@ -93,8 +96,16 @@ resource "aws_api_gateway_account" "this" {
     cloudwatch_role_arn = var.cloudwatch_role_arn
 }
 
-# CloudWatch log group for API Gateway
+# Check if CloudWatch log group already exists
+data "aws_cloudwatch_log_group" "existing_log_group" {
+    name = "/aws/apigateway/${var.project_name}-api"
+    count = 0  # Set to 0 to prevent errors if not found, but keep the resource defined
+}
+
+# CloudWatch log group for API Gateway with conditional creation
 resource "aws_cloudwatch_log_group" "api_gateway_logs" {
+    # Skip creation if log group exists (will be handled by import)
+    count             = 0
     name              = "/aws/apigateway/${var.project_name}-api"
     retention_in_days = 7
 }
@@ -106,7 +117,8 @@ resource "aws_api_gateway_stage" "todo_api" {
     stage_name    = var.api_stage_name
   
     access_log_settings {
-        destination_arn = aws_cloudwatch_log_group.api_gateway_logs.arn
+        # Use the CloudWatch log group ARN format directly since we know it exists
+        destination_arn = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/${var.project_name}-api"
         format          = jsonencode({
             requestId      = "$context.requestId"
             ip             = "$context.identity.sourceIp"

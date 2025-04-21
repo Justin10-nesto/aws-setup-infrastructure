@@ -114,6 +114,7 @@ The infrastructure is deployed using Terraform, which creates and configures all
 5. Run `terraform plan` to preview the changes
 6. Run `terraform apply` to deploy the infrastructure
 
+
 ## Security Considerations
 
 - All sensitive data is stored as sensitive variables in Terraform

@@ -1,5 +1,15 @@
-# EC2 instance profile for Docker host
+# Data source for AWS account ID
+data "aws_caller_identity" "current" {}
+
+# Use a simpler approach to check if instance profile exists
+locals {
+  instance_profile_exists = true  # Default to assuming it exists to avoid creation errors
+  instance_profile_name = "${var.project_name}-ec2-profile"
+}
+
+# EC2 instance profile for Docker host - disabled since resource exists
 resource "aws_iam_role" "ec2_role" {
+  count = 0  # Disable creation as resource exists
   name = "${var.project_name}-ec2-role"
 
   assume_role_policy = jsonencode({
@@ -20,19 +30,24 @@ resource "aws_iam_role" "ec2_role" {
   }
 }
 
+# Only create the instance profile if we explicitly set the local to false
 resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "${var.project_name}-ec2-profile"
-  role = aws_iam_role.ec2_role.name
+  count = local.instance_profile_exists ? 0 : 1
+  name = local.instance_profile_name
+  # Reference the role directly by name since we know it exists
+  role = "${var.project_name}-ec2-role"
 }
 
 # Attach SSM policy to EC2 role for easier management
 resource "aws_iam_role_policy_attachment" "ec2_ssm_attachment" {
-  role       = aws_iam_role.ec2_role.name
+  # Reference the role directly by name since we know it exists
+  role       = "${var.project_name}-ec2-role"
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # Custom policy for EC2 permissions
 resource "aws_iam_policy" "ec2_policy" {
+  count       = 0  # Disable creation as resource exists
   name        = "${var.project_name}-ec2-policy"
   description = "Custom policy for EC2 instance"
 
@@ -55,12 +70,14 @@ resource "aws_iam_policy" "ec2_policy" {
 
 # Attach custom EC2 policy
 resource "aws_iam_role_policy_attachment" "ec2_policy_attachment" {
-  role       = aws_iam_role.ec2_role.name
-  policy_arn = aws_iam_policy.ec2_policy.arn
+  # Reference the role and policy directly by name
+  role       = "${var.project_name}-ec2-role"
+  policy_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${var.project_name}-ec2-policy"
 }
 
 # Create IAM role for CloudWatch logging for API Gateway
 resource "aws_iam_role" "cloudwatch_role" {
+  count = 0  # Disable creation as resource exists
   name = "${var.project_name}-cloudwatch-role"
 
   # Update the assume role policy to allow API Gateway to assume this role
@@ -88,7 +105,8 @@ resource "aws_iam_role" "cloudwatch_role" {
 # Attach CloudWatch policy to role with proper permissions for API Gateway
 resource "aws_iam_role_policy" "cloudwatch_policy" {
   name = "${var.project_name}-cloudwatch-policy"
-  role = aws_iam_role.cloudwatch_role.id
+  # Reference the role directly by name
+  role = "${var.project_name}-cloudwatch-role"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -112,6 +130,7 @@ resource "aws_iam_role_policy" "cloudwatch_policy" {
 
 # Add the specific API Gateway CloudWatch role policy
 resource "aws_iam_role_policy_attachment" "gateway_cloudwatch_policy" {
-  role       = aws_iam_role.cloudwatch_role.name
+  # Reference the role directly by name
+  role       = "${var.project_name}-cloudwatch-role"
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }

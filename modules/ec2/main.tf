@@ -13,30 +13,8 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-# Check if security group already exists
-data "aws_security_groups" "existing_sg" {
-  filter {
-    name   = "group-name"
-    values = ["${var.project_name}-ec2-sg"]
-  }
-  
-  filter {
-    name   = "vpc-id"
-    values = [var.vpc_id]
-  }
-}
-
-# Get the specific security group if it exists
-data "aws_security_group" "existing_sg_details" {
-  count = length(data.aws_security_groups.existing_sg.ids) > 0 ? 1 : 0
-  id    = data.aws_security_groups.existing_sg.ids[0]
-}
-
-# Security group for EC2 instance
+# Create security group directly without checking if it exists first
 resource "aws_security_group" "ec2_sg" {
-  # Skip creation if security group already exists
-  count       = local.sg_exists ? 0 : 1
-  
   name        = "${var.project_name}-ec2-sg"
   description = "Security group for EC2 instance running ToDo app"
   vpc_id      = var.vpc_id
@@ -46,7 +24,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Consider restricting to your IP for better security
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # Allow HTTP
@@ -90,40 +68,19 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# Check if an instance with the same name tag already exists
-data "aws_instances" "existing_todo_app" {
-  filter {
-    name   = "tag:Name"
-    values = ["${var.project_name}-ec2-instance"]
-  }
-  
-  filter {
-    name   = "instance-state-name"
-    values = ["running", "stopped", "pending"]
-  }
-  
-  # This prevents failure if no instances are found
-  instance_state_names = ["running", "stopped", "pending"]
-}
-
+# Use local values to simplify references to resources
 locals {
-  # Check if we found any instances
-  instance_exists = length(data.aws_instances.existing_todo_app.ids) > 0
+  sg_id = aws_security_group.ec2_sg.id
   
-  # Check if security group exists
-  sg_exists = length(data.aws_security_groups.existing_sg.ids) > 0
-  
-  # Get the ID of the existing security group if it exists
-  sg_id = local.sg_exists ? data.aws_security_group.existing_sg_details[0].id : (length(aws_security_group.ec2_sg) > 0 ? aws_security_group.ec2_sg[0].id : "")
+  create_new_instance = true 
+  instance_type = "t3.micro"  # Changed back to t3.micro as t2.micro isn't supported in eu-north-1
 }
 
-# EC2 instance for running the ToDo app with Docker
 resource "aws_instance" "todo_app" {
-  # Skip creation if instance already exists
-  count                = local.instance_exists ? 0 : 1
+  count = local.create_new_instance ? 1 : 0
   
   ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = var.ec2_instance_type
+  instance_type          = local.instance_type
   subnet_id              = var.public_subnet_ids[0]
   vpc_security_group_ids = [local.sg_id]
   key_name               = var.ec2_key_name
@@ -142,7 +99,7 @@ resource "aws_instance" "todo_app" {
     yum update -y
     
     # Install Docker and Git
-    amazon-linux-extras install docker -y
+    amazon-linux-extras install -y docker
     yum install -y git
     systemctl start docker
     systemctl enable docker
@@ -203,22 +160,16 @@ resource "aws_instance" "todo_app" {
   }
 }
 
-# Elastic IP for EC2 instance - only create if instance is created
+# Elastic IP for EC2 instance
 resource "aws_eip" "ec2_eip" {
-  count     = local.instance_exists ? 0 : 1
-  instance  = local.instance_exists ? null : aws_instance.todo_app[0].id
+  count     = local.create_new_instance ? 1 : 0
+  instance  = length(aws_instance.todo_app) > 0 ? aws_instance.todo_app[0].id : null
   domain    = "vpc"
 
   tags = {
     Name = "${var.project_name}-ec2-eip"
   }
-}
-
-# If we found an existing instance, get its IP/DNS
-data "aws_instance" "existing_instance" {
-  count       = local.instance_exists ? 1 : 0
-  filter {
-    name   = "tag:Name"
-    values = ["${var.project_name}-ec2-instance"]
-  }
+  
+  # Only create if we are creating an instance
+  depends_on = [aws_instance.todo_app]
 }

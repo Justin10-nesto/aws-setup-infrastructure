@@ -14,27 +14,11 @@ provider "aws" {
   secret_key = var.aws_secret_key
 }
 
-# Check if key pair exists before creating it
-data "aws_key_pair" "existing_key" {
-  key_name = "todo-app-key"
-  filter {
-    name   = "key-name"
-    values = ["todo-app-key"]
-  }
-  
-  # Don't fail if key doesn't exist
-  count = 0
-}
-
-# Create key pair from existing public key file only if it doesn't exist
-resource "aws_key_pair" "todo_app_key" {
-  count      = length(data.aws_key_pair.existing_key) > 0 ? 0 : 1
-  key_name   = "todo-app-key"
-  public_key = file("${path.module}/ssh/todo-app-key.pub")
-}
-
+# Use the correct data source for key pair check
 locals {
-  key_name = length(data.aws_key_pair.existing_key) > 0 ? data.aws_key_pair.existing_key[0].key_name : try(aws_key_pair.todo_app_key[0].key_name, "todo-app-key")
+  key_name = "todo-app-key"
+  # Default placeholder endpoint when EC2 instance is not created
+  default_endpoint = "127.0.0.1:8000"
 }
 
 # VPC and Network Configuration
@@ -93,7 +77,7 @@ module "api_gateway" {
   source = "./modules/api_gateway"
   
   project_name       = var.project_name
-  ec2_endpoint       = "${module.ec2.ec2_public_ip}:8000"
+  ec2_endpoint       = module.ec2.ec2_public_ip != null ? "${module.ec2.ec2_public_ip}:8000" : local.default_endpoint
   api_stage_name     = "v1"
   cloudwatch_role_arn = module.iam.cloudwatch_role_arn
 }

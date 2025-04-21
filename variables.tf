@@ -9,14 +9,14 @@ variable "aws_access_key" {
   description = "AWS access key"
   type        = string
   sensitive   = true
-  default     = "AKIAVRUVSW7PJXWRLIPH"
+  # SECURITY FIX: Removed hardcoded credentials
 }
 
 variable "aws_secret_key" {
   description = "AWS secret key"
   type        = string
   sensitive   = true
-  default     = "TgGDLdvxxMNTN0sSoWPxL6p3XTBw1PToE4rznsNP"
+  # SECURITY FIX: Removed hardcoded credentials
 }
 
 # Email Configuration
@@ -24,14 +24,14 @@ variable "email_host_user" {
   description = "Email address for sending notifications"
   type        = string
   sensitive   = true
-  default     = "jastinlasway10@gmail.com"
+  # SECURITY FIX: Removed hardcoded email
 }
 
 variable "email_host_password" {
   description = "Email password for sending notifications"
   type        = string
   sensitive   = true
-  default     = "rqnljrecoutzyel"
+  # SECURITY FIX: Removed hardcoded password
 }
 
 # African Taking API Configuration
@@ -39,14 +39,14 @@ variable "african_taking_username" {
   description = "African Taking API username"
   type        = string
   sensitive   = true
-  default     = "justin-nesto10"
+  # SECURITY FIX: Removed hardcoded API username
 }
 
 variable "african_taking_api_key" {
   description = "African Taking API key"
   type        = string
   sensitive   = true
-  default     = "1084e65964494de4ab714e045fa2757d9c77a214637f674bea0080925c872a24"
+  # SECURITY FIX: Removed hardcoded API key
 }
 
 # Django Admin Configuration
@@ -66,7 +66,7 @@ variable "django_admin_password" {
   description = "Django admin password"
   type        = string
   sensitive   = true
-  default     = "adminpassword"
+  # SECURITY FIX: Removed hardcoded password
 }
 
 # Django Secret Key
@@ -74,7 +74,7 @@ variable "django_secret_key" {
   description = "Django secret key"
   type        = string
   sensitive   = true
-  default     = "django-insecure-v1g3_$)fpa6h8)b8_s+*r*$p9+b(dt=p$jmv2i52$c9lbgb$&m"
+  # SECURITY FIX: Removed hardcoded secret key
 }
 
 variable "project_name" {
@@ -144,7 +144,7 @@ variable "ssh_allowed_cidrs" {
 variable "ec2_instance_type" {
   description = "Instance type for EC2"
   type        = string
-  default     = "t3.micro"
+  default     = "t3.micro"  # Changed back to t3.micro as t2.micro isn't supported in eu-north-1
 }
 
 variable "ec2_key_name" {
@@ -188,7 +188,7 @@ variable "db_password" {
   description = "Database password"
   type        = string
   sensitive   = true
-  default     = "Todo123!App456"
+  # SECURITY FIX: Removed hardcoded password
 }
 
 variable "db_port" {

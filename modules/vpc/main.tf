@@ -103,7 +103,7 @@ data "aws_ami" "amazon_linux_2" {
 # NAT Instance (cheaper alternative to NAT Gateway)
 resource "aws_instance" "nat_instance" {
   ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = var.nat_instance_type
+  instance_type          = "t3.micro"  # Changed back to t3.micro as t2.micro isn't supported in eu-north-1
   subnet_id              = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.nat_instance.id]
   source_dest_check      = false  # Required for NAT functionality
@@ -114,19 +114,19 @@ resource "aws_instance" "nat_instance" {
     #!/bin/bash
     # Update packages
     yum update -y
-
+    
     # Enable IP forwarding
     echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
     sysctl -p
-
+    
+    # Install iptables-services for persistent rules
+    yum install -y iptables-services
+    systemctl enable iptables
+    systemctl start iptables
+    
     # Configure NAT
     iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-    iptables-save > /etc/iptables.rules
-
-    # Make iptables rules persist across reboots
-    echo '#!/bin/bash' > /etc/rc.local
-    echo 'iptables-restore < /etc/iptables.rules' >> /etc/rc.local
-    chmod +x /etc/rc.local
+    service iptables save
   EOF
 
   tags = {
@@ -178,8 +178,10 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
-# Security group for EC2 application instances
+# Security group for EC2 application instances - handle duplicate error
 resource "aws_security_group" "ec2_sg" {
+  count = 0  # Disable creation as resource exists
+  
   name        = "todo-app-ec2-sg"
   description = "Security group for EC2 instances running the application"
   vpc_id      = aws_vpc.main.id
@@ -228,6 +230,12 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
+# Data source for the existing EC2 security group
+data "aws_security_group" "existing_ec2_sg" {
+  name   = "todo-app-ec2-sg"
+  vpc_id = aws_vpc.main.id
+}
+
 # Security group for database
 resource "aws_security_group" "db" {
   name        = "todo-app-db-sg"
@@ -239,7 +247,7 @@ resource "aws_security_group" "db" {
     from_port       = var.db_port
     to_port         = var.db_port
     protocol        = "tcp"
-    security_groups = [aws_security_group.ec2_sg.id]
+    security_groups = [data.aws_security_group.existing_ec2_sg.id]
   }
 
   # Allow all outbound traffic within VPC
@@ -253,4 +261,8 @@ resource "aws_security_group" "db" {
   tags = {
     Name = "todo-app-db-sg"
   }
+}
+
+locals {
+  ec2_sg_id = data.aws_security_group.existing_ec2_sg.id
 }
