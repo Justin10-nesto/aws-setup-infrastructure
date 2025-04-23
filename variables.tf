@@ -9,14 +9,12 @@ variable "aws_access_key" {
   description = "AWS access key"
   type        = string
   sensitive   = true
-  # SECURITY FIX: Removed hardcoded credentials
 }
 
 variable "aws_secret_key" {
   description = "AWS secret key"
   type        = string
   sensitive   = true
-  # SECURITY FIX: Removed hardcoded credentials
 }
 
 # Email Configuration
@@ -144,7 +142,7 @@ variable "ssh_allowed_cidrs" {
 variable "ec2_instance_type" {
   description = "Instance type for EC2"
   type        = string
-  default     = "t3.micro"  # Changed back to t3.micro as t2.micro isn't supported in eu-north-1
+  default     = "t3.micro" # Changed back to t3.micro as t2.micro isn't supported in eu-north-1
 }
 
 variable "ec2_key_name" {
